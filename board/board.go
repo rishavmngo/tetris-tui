@@ -15,6 +15,8 @@ type Board struct {
 	ActiveShape *shape.Shape
 	AShapeX     int
 	AShapeY     int
+	VShapeX     int
+	VShapeY     int
 	Height      int
 	Width       int
 	GameOver    bool
@@ -29,6 +31,8 @@ func NewBoard() *Board {
 		Width:       10,
 		AShapeX:     0,
 		AShapeY:     0,
+		VShapeX:     0,
+		VShapeY:     0,
 		GameOver:    false,
 		Score:       0,
 	}
@@ -117,6 +121,16 @@ func (b *Board) SpwanPiece() {
 	b.ActiveShape = sh
 	b.AShapeX = 0
 	b.AShapeY = 3
+	b.UpdateVirtual()
+}
+
+func (b *Board) UpdateVirtual() {
+	b.VShapeX = b.AShapeX
+	b.VShapeY = b.AShapeY
+
+	for b.isValid(b.ActiveShape, b.VShapeX+1, b.VShapeY) {
+		b.VShapeX++
+	}
 }
 
 func (b *Board) MoveLeft() {
@@ -168,6 +182,7 @@ func (b *Board) Rotate() {
 
 func (b *Board) GetCompositeLayer() [20][10]cells.Cell {
 	composite := b.Grid
+	b.UpdateVirtual()
 
 	if b.ActiveShape != nil {
 		for i, row := range b.ActiveShape.Grid {
@@ -176,6 +191,9 @@ func (b *Board) GetCompositeLayer() [20][10]cells.Cell {
 				if !col {
 					continue
 				}
+				vr := b.VShapeX + i
+				vc := b.VShapeY + j
+				composite[vr][vc] = cells.Virtual
 				r := b.AShapeX + i
 				c := b.AShapeY + j
 				composite[r][c] = b.ActiveShape.ShapeType
@@ -190,9 +208,8 @@ func (b *Board) Render() {
 	composite := b.GetCompositeLayer()
 
 	var sb strings.Builder
-	sb.WriteString("\033[H") // Move cursor to top
+	sb.WriteString("\033[H")
 
-	// Top border
 	sb.WriteString("+")
 	sb.WriteString(strings.Repeat("-", b.Width*2))
 	sb.WriteString("+\r\n")
@@ -220,18 +237,19 @@ func (b *Board) Render() {
 }
 
 func colorize(cell cells.Cell) string {
+	block := "[]"
 	colors := map[cells.Cell]string{
-		cells.TypeI: "\033[36m[]\033[0m",       // Cyan
-		cells.TypeO: "\033[33m[]\033[0m",       // Yellow
-		cells.TypeT: "\033[35m[]\033[0m",       // Magenta
-		cells.TypeS: "\033[32m[]\033[0m",       // Green
-		cells.TypeZ: "\033[31m[]\033[0m",       // Red
-		cells.TypeJ: "\033[34m[]\033[0m",       // Blue
-		cells.TypeL: "\033[38;5;208m[]\033[0m", // Orange
+		cells.TypeI: "\033[36m" + block + "\033[0m",
+		cells.TypeO: "\033[33m" + block + "\033[0m",
+		cells.TypeT: "\033[35m" + block + "\033[0m",
+		cells.TypeS: "\033[32m" + block + "\033[0m",
+		cells.TypeZ: "\033[31m" + block + "\033[0m",
+		cells.TypeJ: "\033[34m" + block + "\033[0m",
+		cells.TypeL: "\033[38;5;208m" + block + "\033[0m",
 	}
 
 	if color, exists := colors[cell]; exists {
 		return color
 	}
-	return "[]"
+	return "\033[90m" + block + "\033[0m"
 }
